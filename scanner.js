@@ -21,8 +21,8 @@ function Scanner(options) {
     self.geo = new Geo({ timeout : config.http_socket_timeout });
 
   	// -----------------------------------------
-   	// local http server interface 
-    if(config.http_port) 
+   	// local http server interface
+    if(config.http_port)
     {
         var express = require('express');
         var app = express();
@@ -44,13 +44,13 @@ function Scanner(options) {
             for(var url in self.addr_working) {
                 urls.push(url);
 	    }
-		
+
 	    res.write(JSON.stringify(urls));
             res.end();
-	}); 
-       
+	});
+
         http.createServer(app).listen(config.http_port, function() {
-            console.log("HTTP server listening on port: ",config.http_port);    
+            console.log("HTTP server listening on port: ",config.http_port);
         });
     }
 
@@ -150,7 +150,7 @@ function Scanner(options) {
             else {
                 try {
                     var addr_list = JSON.parse(data);
-                    self.inject(addr_list);                    
+                    self.inject(addr_list);
 
                     // main init
                     if(p2pool_init) {
@@ -159,7 +159,7 @@ function Scanner(options) {
                         // if we can read p2pool addr file, also add our pre-collected IPs
                         // if(filename != config.init_file) {
                             var init_addr = JSON.parse(fs.readFileSync(config.init_file, 'utf8'));
-                            self.inject(init_addr);                    
+                            self.inject(init_addr);
                         //}
 
                         for(var i = 0; i < (config.probe_N_IPs_simultaneously || 1); i++)
@@ -176,7 +176,7 @@ function Scanner(options) {
             dpc(1000 * 60, self.update);
         })
     }
-    
+
     // store public pools in a file that reloads at startup
     self.store_working = function() {
         var data = JSON.stringify(self.addr_working);
@@ -218,33 +218,25 @@ function Scanner(options) {
 
         var info = _.find(self.addr_pending, function() { return true; });
         delete self.addr_pending[info.ip];
-	    
+
 	if(info.ip == "0.0.0.0" || info.ip == "127.0.0.1") {
 	    return;
 	}
-	    
+
         self.addr_digested[info.ip] = info;
         console.log("P2POOL DIGESTING:" + info.ip + ":" + 9171);
 
-	var allowedVersions = ["2d52fd0-dirty",
-                               "c5e5ef6",
-                               "5eeb76d-dirty",
-                               "2d52fd0",
-                               "24bd045",
-                               "9db5ace-dirty",
-                               "9db5ace",
-                               "bb01325-dirty",
-                               "3f9c0ac",
-                               "3f9c0ac-dirty"];
+	//var allowedVersions = ["2d52fd0-dirty", "c5e5ef6", "5eeb76d-dirty", "2d52fd0", "24bd045", "9db5ace-dirty", "9db5ace", "bb01325-dirty", "3f9c0ac", "3f9c0ac-dirty"];
 
         digest_ip(info, function(err, fee){
             if(!err) {
                 digest_local_stats(info, function(err, stats) {
-		    if(!err && allowedVersions.indexOf(stats.version) >= 0) {
+		    //if(!err && allowedVersions.indexOf(stats.version) >= 0) {
+        if(!err) {
                     	info.fee = fee;
 		        info.stats = stats;
 	                console.log("FOUND WORKING POOL: " + info.ip + ":9171 " + info.stats.version);
-                	self.addr_working[info.ip] = info;    
+                	self.addr_working[info.ip] = info;
 		digest_global_stats(info, function(err, stats) {
                         if(!err)
                             self.update_global_stats(stats);
@@ -264,9 +256,9 @@ function Scanner(options) {
             }
             else {
                 delete self.addr_working[info.ip];
-                if(!err && allowedVersions.indexOf(info.stats.version) < 0) {
-                  console.log("Node was wrong version: " + info.stats.version);
-		}
+                //if(!err && allowedVersions.indexOf(info.stats.version) < 0) {
+                //  console.log("Node was wrong version: " + info.stats.version);
+		            //}
                 continue_digest();
             }
 
@@ -324,7 +316,7 @@ function Scanner(options) {
 
     // make http request to the target node ip
     self.request = function(options, callback, is_plain)
-    {    
+    {
         http_handler = http;
         var req = http_handler.request(options, function(res) {
             res.setEncoding('utf8');
@@ -349,7 +341,7 @@ function Scanner(options) {
         });
 
         req.on('socket', function (socket) {
-            socket.setTimeout(config.http_socket_timeout);  
+            socket.setTimeout(config.http_socket_timeout);
             socket.on('timeout', function() {
                 req.abort();
             });
@@ -393,4 +385,3 @@ function Scanner(options) {
 
 
 global.scanner = new Scanner();
-
