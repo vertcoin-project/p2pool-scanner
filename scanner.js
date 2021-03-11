@@ -21,8 +21,8 @@ function Scanner(options) {
     self.geo = new Geo({ timeout : config.http_socket_timeout });
 
   	// -----------------------------------------
-   	// local http server interface 
-    if(config.http_port) 
+   	// local http server interface
+    if(config.http_port)
     {
         var express = require('express');
         var app = express();
@@ -44,13 +44,13 @@ function Scanner(options) {
             for(var url in self.addr_working) {
                 urls.push(url);
 	    }
-		
+
 	    res.write(JSON.stringify(urls));
             res.end();
-	}); 
-       
+	});
+
         http.createServer(app).listen(config.http_port, function() {
-            console.log("HTTP server listening on port: ",config.http_port);    
+            console.log("HTTP server listening on port: ",config.http_port);
         });
     }
 
@@ -75,8 +75,8 @@ function Scanner(options) {
             +".p2p-caption { width: 820px; text-align: center;  background-color: #ddd; padding-top: 4px; padding-bottom: 8px;}"
             +".p2p div { float : left; }"
             +".p2p-ip { width: 200px; text-align:left; }"
-            +".p2p-version { margin-left: 10px; width: 100px; text-align: center;}"
-            +".p2p-fee { margin-left: 10px; width: 90px; text-align: center;}"
+            +".p2p-version { margin-left: 10px; width: 110px; text-align: center;}"
+            +".p2p-fee { margin-left: 10px; width: 80px; text-align: center;}"
             +".p2p-uptime { margin-left: 10px; width: 100px; text-align: center;}"
             +".p2p-geo { margin-left: 40px; width: 248px; text-align: left;}"
             +"img { border: none;}"
@@ -84,7 +84,7 @@ function Scanner(options) {
             +"</head><body>";
         if(logo)
             str += "<div style='text-align:center;'><img src=\""+logo+"\" /></div><br style='clear:both;'/>";
-        str += "<center><a href='https://github.com/metalicjames/p2pool-lyra2re' target='_blank'>PEER TO PEER "+(config.currency.toUpperCase())+" MINING NETWORK</a> - PUBLIC NODE LIST<br/><span style='font-size:10px;color:#333;'>GENERATED ON: "+(new Date())+"</span></center><p/>"
+        str += "<center><a href='https://www.vertcoin.org/' target='_blank'>PEER TO PEER "+(config.currency.toUpperCase())+" MINING NETWORK</a> - PUBLIC NODE LIST<br/><span style='font-size:10px;color:#333;'>GENERATED ON: "+(new Date())+"</span></center><p/>"
         if(self.poolstats)
             str += "<center>Pool speed: "+(self.poolstats.pool_hash_rate/1000000).toFixed(2)+" "+config.speed_abbrev+"</center>";
         str += "<center>Currently observing "+(self.nodes_total || "N/A")+" nodes.<br/>"+_.size(self.addr_working)+" nodes are public with following IPs:</center><p/>";
@@ -100,7 +100,7 @@ function Scanner(options) {
 
             var version = info.stats.version;
             var uptime = (info.stats.uptime / 60 / 60 / 24).toFixed(1);
-            var fee = parseFloat((info.fee | 0)).toFixed(2);
+            var fee = parseFloat((info.fee || 0)).toFixed(2);
 
             str += "<div class='p2p-row "+(row++ & 1 ? "row-grey" : "")+"'><div class='p2p-ip'><a href='http://"+ip+':'+9171+"/static/' target='_blank'>"+ip+":"+9171+"</a></div><div class='p2p-version'>"+version+"</div><div class='p2p-fee'>"+fee+"%</div><div class='p2p-uptime'>"+uptime+" days</div>";
             str += "<div class='p2p-geo'>";
@@ -120,7 +120,7 @@ function Scanner(options) {
     if(config.flush_to_file_every_N_msec && config.flush_filename) {
         function flush_rendering() {
             var str = self.render();
-            fs.writeFile(config.flush_filename, str, { encoding : 'utf8'});
+            fs.writeFile(config.flush_filename, str, { encoding : 'utf8'}, (err) => {if (err){console.log(err)}else{console.log("File written successfully\n");}});
             dpc(config.flush_to_file_every_N_msec, flush_rendering);
         }
 
@@ -150,7 +150,7 @@ function Scanner(options) {
             else {
                 try {
                     var addr_list = JSON.parse(data);
-                    self.inject(addr_list);                    
+                    self.inject(addr_list);
 
                     // main init
                     if(p2pool_init) {
@@ -159,7 +159,7 @@ function Scanner(options) {
                         // if we can read p2pool addr file, also add our pre-collected IPs
                         // if(filename != config.init_file) {
                             var init_addr = JSON.parse(fs.readFileSync(config.init_file, 'utf8'));
-                            self.inject(init_addr);                    
+                            self.inject(init_addr);
                         //}
 
                         for(var i = 0; i < (config.probe_N_IPs_simultaneously || 1); i++)
@@ -176,7 +176,7 @@ function Scanner(options) {
             dpc(1000 * 60, self.update);
         })
     }
-    
+
     // store public pools in a file that reloads at startup
     self.store_working = function() {
         var data = JSON.stringify(self.addr_working);
@@ -218,36 +218,23 @@ function Scanner(options) {
 
         var info = _.find(self.addr_pending, function() { return true; });
         delete self.addr_pending[info.ip];
-	    
+
 	if(info.ip == "0.0.0.0" || info.ip == "127.0.0.1") {
 	    return;
 	}
-	    
+
         self.addr_digested[info.ip] = info;
         console.log("P2POOL DIGESTING:" + info.ip + ":" + 9171);
 
-	var allowedVersions = ["fdc4e2d-dirty", 
-			       "20e6354-dirty", 
-			       "8542674-dirty", 
-			       "c174c98-dirty", 
-			       "fcfb6ad-dirty", 
-			       "3877fc7-dirty", 
-			       "fdc4e2d", 
-                               "20e6354", 
-                               "8542674", 
-                               "c174c98", 
-                               "fcfb6ad", 
-                               "3877fc7", 
-                               "e0909bc-dirty", 
-                               "e0909bc", 
-                               "952287c", 
-                               "952287c-dirty", 
-                               "b092f6b", 
-                               "b092f6b-dirty",
-			       "649807a",
-			       "649807a-dirty",
-                               "d7ddaa4",
-                               "d7ddaa4-dirty"];
+	var allowedVersions = ["2d52fd0-dirty",
+                               "c5e5ef6",
+                               "5eeb76d-dirty",
+                               "2d52fd0",
+                               "24bd045",
+                               "9db5ace-dirty",
+                               "9db5ace",
+                               "bb01325-dirty",
+                               "3f9c0ac-dirty"];
 
         digest_ip(info, function(err, fee){
             if(!err) {
@@ -256,7 +243,7 @@ function Scanner(options) {
                     	info.fee = fee;
 		        info.stats = stats;
 	                console.log("FOUND WORKING POOL: " + info.ip + ":9171 " + info.stats.version);
-                	self.addr_working[info.ip] = info;    
+                	self.addr_working[info.ip] = info;
 		digest_global_stats(info, function(err, stats) {
                         if(!err)
                             self.update_global_stats(stats);
@@ -276,9 +263,9 @@ function Scanner(options) {
             }
             else {
                 delete self.addr_working[info.ip];
-		/*if(!err && allowedVersions.indexOf(info.stats.version) < 0) {
-		   console.log("Node was wrong version: " + info.stats.version);
-		}*/
+                if(!err && allowedVersions.indexOf(info.stats.version) < 0) {
+                  console.log("Node was wrong version: " + info.stats.version);
+		}
                 continue_digest();
             }
 
@@ -336,7 +323,7 @@ function Scanner(options) {
 
     // make http request to the target node ip
     self.request = function(options, callback, is_plain)
-    {    
+    {
         http_handler = http;
         var req = http_handler.request(options, function(res) {
             res.setEncoding('utf8');
@@ -361,7 +348,7 @@ function Scanner(options) {
         });
 
         req.on('socket', function (socket) {
-            socket.setTimeout(config.http_socket_timeout);  
+            socket.setTimeout(config.http_socket_timeout);
             socket.on('timeout', function() {
                 req.abort();
             });
@@ -404,5 +391,4 @@ function Scanner(options) {
 }
 
 
-GLOBAL.scanner = new Scanner();
-
+global.scanner = new Scanner();

@@ -1,10 +1,10 @@
-var http = require('http')
+var http = require('https')
 
 function Geo(options) {
     var self = this;
-        
+
     function request(options, callback)
-    {    
+    {
 	http.get(options.host, function(res){
    	 var body = '';
 
@@ -15,7 +15,7 @@ function Geo(options) {
     	res.on('end', function(){
             var response = JSON.parse(body);
             console.log("Got a response: ", response);
- 	    callback(null, response);       
+ 	    callback(null, response);
         });
         }).on('error', function(e){
             console.error("Got an error: ", e);
@@ -39,10 +39,10 @@ function Geo(options) {
 
     self.get = function(ip, callback) {
 
-        // console.log("QUERYING IP:",ip);
+        console.log("QUERYING IP:",ip);
         var options = {
-            host : 'http://freegeoip.net/json/'+ip,
-            port : 80,
+            host : 'https://freegeoip.app/json/'+ip,
+            port : null,
             method: 'GET'
         }
 
