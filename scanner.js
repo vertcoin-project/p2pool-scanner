@@ -234,6 +234,7 @@ function Scanner(options) {
                                "9db5ace-dirty",
                                "9db5ace",
                                "bb01325-dirty",
+                               "3f9c0ac",
                                "3f9c0ac-dirty"];
 
         digest_ip(info, function(err, fee){
