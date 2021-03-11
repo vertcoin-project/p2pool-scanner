@@ -11,8 +11,8 @@ function Scanner(options) {
 	var self = this;
     self.options = options;
 
-    var config = eval('('+fs.readFileSync("scanner.cfg",'utf8')+')');
-    var upload = fs.existsSync('upload.cfg') ? eval('('+fs.readFileSync("upload.cfg",'utf8')+')') : null;
+    var config = eval('('+fs.readFileSync(__dirname+"/scanner.cfg",'utf8')+')');
+    var upload = fs.existsSync(__dirname+'/upload.cfg') ? eval('('+fs.readFileSync(__dirname+"/upload.cfg",'utf8')+')') : null;
 
     self.addr_pending = { }     // list of addresses waiting scan
     self.addr_digested = { }    // list of scanned addresses
@@ -21,8 +21,8 @@ function Scanner(options) {
     self.geo = new Geo({ timeout : config.http_socket_timeout });
 
   	// -----------------------------------------
-   	// local http server interface
-    if(config.http_port)
+   	// local http server interface 
+    if(config.http_port) 
     {
         var express = require('express');
         var app = express();
@@ -44,17 +44,17 @@ function Scanner(options) {
             for(var url in self.addr_working) {
                 urls.push(url);
 	    }
-
+		
 	    res.write(JSON.stringify(urls));
             res.end();
-	});
-
+	}); 
+       
         http.createServer(app).listen(config.http_port, function() {
-            console.log("HTTP server listening on port: ",config.http_port);
+            console.log("HTTP server listening on port: ",config.http_port);    
         });
     }
 
-    var logo = fs.readFileSync("resources/"+config.currency.toLowerCase()+".png","base64");
+    var logo = fs.readFileSync(__dirname+"/resources/"+config.currency.toLowerCase()+".png","base64");
     if(logo)
         logo = "data:image/png;base64,"+logo;
 
@@ -120,7 +120,7 @@ function Scanner(options) {
     if(config.flush_to_file_every_N_msec && config.flush_filename) {
         function flush_rendering() {
             var str = self.render();
-            fs.writeFile(config.flush_filename, str, { encoding : 'utf8'}, (err) => {if (err){console.log(err)}else{console.log("File written successfully\n");}});
+            fs.writeFile(__dirname+"/"+config.flush_filename, str, { encoding : 'utf8'}, (err) => {if (err){console.log(err)}else{console.log("File written successfully\n");}});
             dpc(config.flush_to_file_every_N_msec, flush_rendering);
         }
 
@@ -150,7 +150,7 @@ function Scanner(options) {
             else {
                 try {
                     var addr_list = JSON.parse(data);
-                    self.inject(addr_list);
+                    self.inject(addr_list);                    
 
                     // main init
                     if(p2pool_init) {
@@ -159,7 +159,7 @@ function Scanner(options) {
                         // if we can read p2pool addr file, also add our pre-collected IPs
                         // if(filename != config.init_file) {
                             var init_addr = JSON.parse(fs.readFileSync(config.init_file, 'utf8'));
-                            self.inject(init_addr);
+                            self.inject(init_addr);                    
                         //}
 
                         for(var i = 0; i < (config.probe_N_IPs_simultaneously || 1); i++)
@@ -176,11 +176,11 @@ function Scanner(options) {
             dpc(1000 * 60, self.update);
         })
     }
-
+    
     // store public pools in a file that reloads at startup
     self.store_working = function() {
         var data = JSON.stringify(self.addr_working);
-        fs.writeFile(config.store_file, data, { encoding : 'utf8' }, function(err) {
+        fs.writeFile(__dirname+"/"+config.store_file, data, { encoding : 'utf8' }, function(err) {
             dpc(60*1000, self.store_working);
         })
     }
@@ -218,11 +218,11 @@ function Scanner(options) {
 
         var info = _.find(self.addr_pending, function() { return true; });
         delete self.addr_pending[info.ip];
-
+	    
 	if(info.ip == "0.0.0.0" || info.ip == "127.0.0.1") {
 	    return;
 	}
-
+	    
         self.addr_digested[info.ip] = info;
         console.log("P2POOL DIGESTING:" + info.ip + ":" + 9171);
 
@@ -244,7 +244,7 @@ function Scanner(options) {
                     	info.fee = fee;
 		        info.stats = stats;
 	                console.log("FOUND WORKING POOL: " + info.ip + ":9171 " + info.stats.version);
-                	self.addr_working[info.ip] = info;
+                	self.addr_working[info.ip] = info;    
 		digest_global_stats(info, function(err, stats) {
                         if(!err)
                             self.update_global_stats(stats);
@@ -324,7 +324,7 @@ function Scanner(options) {
 
     // make http request to the target node ip
     self.request = function(options, callback, is_plain)
-    {
+    {    
         http_handler = http;
         var req = http_handler.request(options, function(res) {
             res.setEncoding('utf8');
@@ -349,7 +349,7 @@ function Scanner(options) {
         });
 
         req.on('socket', function (socket) {
-            socket.setTimeout(config.http_socket_timeout);
+            socket.setTimeout(config.http_socket_timeout);  
             socket.on('timeout', function() {
                 req.abort();
             });
@@ -393,3 +393,4 @@ function Scanner(options) {
 
 
 global.scanner = new Scanner();
+
