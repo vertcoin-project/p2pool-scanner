@@ -71,7 +71,7 @@ function Scanner(options) {
             +"a:hover { text-decoration: none; color: #F04800; }"
             +".row-grey { background-color: #f3f3f3;  }"
             +".p2p {  width: 838px; margin: auto; border: 1px solid #aaa;  box-shadow: 2px 2px 2px #aaa; padding: 2px;  }"
-            +".p2p-row { width: 820px; padding: 10px; height: 16px; }"
+            +".p2p-row { width: 820px; padding: 10px; height: 24px; }"
             +".p2p-caption { width: 820px; text-align: center;  background-color: #ddd; padding-top: 4px; padding-bottom: 8px;}"
             +".p2p div { float : left; }"
             +".p2p-ip { width: 200px; text-align:left; }"
