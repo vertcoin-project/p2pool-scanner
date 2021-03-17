@@ -22,11 +22,10 @@ function Scanner(options) {
 
   	// -----------------------------------------
    	// local http server interface
-    if(config.http_port)
-    {
+    if (config.http_port) {
         var express = require('express');
         var app = express();
-        app.configure(function(){
+        app.configure(function() {
             app.use(express.bodyParser());
         });
         app.get('/', function(req, res) {
@@ -92,10 +91,10 @@ function Scanner(options) {
         str += "<div class='p2p-row p2p-caption'><div class='p2p-ip'>IPs</div><div class='p2p-version'>Version</div><div class='p2p-fee'>Fee</div><div class='p2p-uptime'>Uptime</div><div class='p2p-geo'>Location</div>";
         str += "</div><br style='clear:both;'/>";
 
-        var list = _.sortBy(_.toArray(self.addr_working), function(o) { return o.stats ? -o.stats.uptime : 0; })
+        var list = _.sortBy(_.toArray(self.addr_working), function(o) { return o.stats ? -o.stats.fee : 0; })
 
         var row = 0;
-        _.each(list, function(info) {
+        _.each(list.reverse(), function(info) {
             var ip = info.ip;
 
             var version = info.stats.version;
@@ -120,7 +119,7 @@ function Scanner(options) {
     if(config.flush_to_file_every_N_msec && config.flush_filename) {
         function flush_rendering() {
             var str = self.render();
-            fs.writeFile(__dirname+"/"+config.flush_filename, str, { encoding : 'utf8'}, (err) => {if (err){console.log(err)}else{console.log("File written successfully\n");}});
+            fs.writeFile(__dirname+"/"+config.flush_filename, str, { encoding : 'utf8'}, (err) => {if (err){console.log(err)}else{console.log("File written successfully!");}});
             dpc(config.flush_to_file_every_N_msec, flush_rendering);
         }
 
@@ -139,9 +138,10 @@ function Scanner(options) {
     self.update = function() {
         var filename = config.addr_file;
         if(!fs.existsSync(filename)) {
-            console.error("Unable to fetch p2pool address list from:",config.addr_file);
+            console.error("Unable to fetch p2pool address list from: ",config.addr_file);
             filename = config.init_file;    // if we can't read p2pool's addr file, we just cycle on the local default init...
         }
+	console.log("File of P2Pool addresses: " + filename);
 
         fs.readFile(filename, { encoding : 'utf8' }, function(err, data) {
             if(err) {
@@ -154,6 +154,7 @@ function Scanner(options) {
 
                     // main init
                     if(p2pool_init) {
+                    	console.log("Main INIT function.");
                         p2pool_init = false;
 
                         // if we can read p2pool addr file, also add our pre-collected IPs
@@ -164,6 +165,7 @@ function Scanner(options) {
 
                         for(var i = 0; i < (config.probe_N_IPs_simultaneously || 1); i++)
                             self.digest();
+
                         dpc(60*1000, function() { self.store_working(); })
                     }
                 }
@@ -180,7 +182,8 @@ function Scanner(options) {
     // store public pools in a file that reloads at startup
     self.store_working = function() {
         var data = JSON.stringify(self.addr_working);
-        fs.writeFile(__dirname+"/"+config.store_file, data, { encoding : 'utf8' }, function(err) {
+        console.log("Write public pools to a file that reloads at startup.");
+        fs.writeFile(config.store_file, data, { encoding : 'utf8' }, function(err) {
             dpc(60*1000, self.store_working);
         })
     }
@@ -211,33 +214,31 @@ function Scanner(options) {
         self.poolstats = poolstats;
     }
 
-    // execute scan of a single IP
+	// execute scan of a single IP
     self.digest = function() {
+		//console.log("Begin Digest. Size of addr_pending: " + _.size(self.addr_pending));
         if(!_.size(self.addr_pending))
             return self.list_complete();
 
         var info = _.find(self.addr_pending, function() { return true; });
         delete self.addr_pending[info.ip];
 
-	if(info.ip == "0.0.0.0" || info.ip == "127.0.0.1") {
-	    return;
-	}
+        if(info.ip == "0.0.0.0" || info.ip == "127.0.0.1") {
+	    	    return;
+		    }
 
         self.addr_digested[info.ip] = info;
         console.log("P2POOL DIGESTING:" + info.ip + ":" + 9171);
 
-	//var allowedVersions = ["2d52fd0-dirty", "c5e5ef6", "5eeb76d-dirty", "2d52fd0", "24bd045", "9db5ace-dirty", "9db5ace", "bb01325-dirty", "3f9c0ac", "3f9c0ac-dirty"];
-
         digest_ip(info, function(err, fee){
             if(!err) {
+                self.addr_working[info.ip] = info;
                 digest_local_stats(info, function(err, stats) {
-		    //if(!err && allowedVersions.indexOf(stats.version) >= 0) {
-        if(!err) {
+                    if(!err)
                     	info.fee = fee;
-		        info.stats = stats;
-	                console.log("FOUND WORKING POOL: " + info.ip + ":9171 " + info.stats.version);
-                	self.addr_working[info.ip] = info;
-		digest_global_stats(info, function(err, stats) {
+                        info.stats = stats;
+                        console.log("FOUND WORKING POOL: " + info.ip + ":9171 | VERSION: " + info.stats.version);
+                    digest_global_stats(info, function(err, stats) {
                         if(!err)
                             self.update_global_stats(stats);
 
@@ -251,14 +252,10 @@ function Scanner(options) {
                         else
                             continue_digest();
                     });
-		}
                 });
             }
             else {
                 delete self.addr_working[info.ip];
-                //if(!err && allowedVersions.indexOf(info.stats.version) < 0) {
-                //  console.log("Node was wrong version: " + info.stats.version);
-		            //}
                 continue_digest();
             }
 
@@ -269,15 +266,15 @@ function Scanner(options) {
         });
     }
 
-    // schedule restar of the scan once all IPs are done
+    // schedule restart of the scan once all IPs are done
     self.list_complete = function() {
+    	console.log("Scheduling restart of the scan.");
         self.addr_pending = self.addr_digested;
         self.addr_digested = { }
         dpc(config.rescan_list_delay, self.digest);
     }
 
     // functions to fetch data from target node IP
-
     function digest_ip(info, callback) {
 
         var options = {
@@ -315,8 +312,7 @@ function Scanner(options) {
     }
 
     // make http request to the target node ip
-    self.request = function(options, callback, is_plain)
-    {
+    self.request = function(options, callback, is_plain) {
         http_handler = http;
         var req = http_handler.request(options, function(res) {
             res.setEncoding('utf8');
@@ -382,6 +378,5 @@ function Scanner(options) {
     else
         console.log("upload.cfg not found, rendering available only on the local interface");
 }
-
 
 global.scanner = new Scanner();
