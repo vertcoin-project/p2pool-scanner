@@ -54,8 +54,9 @@ function Scanner(options) {
     }
 
     var logo = fs.readFileSync(__dirname+"/resources/"+config.currency.toLowerCase()+".png","base64");
-    if(logo)
+    if(logo) {
         logo = "data:image/png;base64,"+logo;
+    }
 
     self.json = function() {
         return JSON.stringify(self.addr_working);
@@ -74,21 +75,23 @@ function Scanner(options) {
             +".p2p-caption { width: 820px; text-align: center;  background-color: #ddd; padding-top: 4px; padding-bottom: 8px;}"
             +".p2p div { float : left; }"
             +".p2p-ip { width: 200px; text-align:left; }"
-            +".p2p-version { margin-left: 10px; width: 110px; text-align: center;}"
+            +".p2p-protocol_version { margin-left: 10px; width: 110px; text-align: center;}"
             +".p2p-fee { margin-left: 10px; width: 80px; text-align: center;}"
             +".p2p-uptime { margin-left: 10px; width: 100px; text-align: center;}"
             +".p2p-geo { margin-left: 40px; width: 248px; text-align: left;}"
             +"img { border: none;}"
             +"</style>"
             +"</head><body>";
-        if(logo)
+        if(logo) {
             str += "<div style='text-align:center;'><img src=\""+logo+"\" /></div><br style='clear:both;'/>";
+        }
         str += "<center><a href='https://www.vertcoin.org/' target='_blank'>PEER TO PEER "+(config.currency.toUpperCase())+" MINING NETWORK</a> - PUBLIC NODE LIST<br/><span style='font-size:10px;color:#333;'>GENERATED ON: "+(new Date())+"</span></center><p/>"
-        if(self.poolstats)
+        if(self.poolstats) {
             str += "<center>Pool speed: "+(self.poolstats.pool_hash_rate/1000000).toFixed(2)+" "+config.speed_abbrev+"</center>";
+        }
         str += "<center>Currently observing "+(self.nodes_total || "N/A")+" nodes.<br/>"+_.size(self.addr_working)+" nodes are public with following IPs:</center><p/>";
         str += "<div class='p2p'>";
-        str += "<div class='p2p-row p2p-caption'><div class='p2p-ip'>IPs</div><div class='p2p-version'>Version</div><div class='p2p-fee'>Fee</div><div class='p2p-uptime'>Uptime</div><div class='p2p-geo'>Location</div>";
+        str += "<div class='p2p-row p2p-caption'><div class='p2p-ip'>IPs</div><div class='p2p-protocol_version'>Version</div><div class='p2p-fee'>Fee</div><div class='p2p-uptime'>Uptime</div><div class='p2p-geo'>Location</div>";
         str += "</div><br style='clear:both;'/>";
 
         var list = _.sortBy(_.toArray(self.addr_working), function(o) { return o.stats ? -o.stats.fee : 0; })
@@ -97,11 +100,19 @@ function Scanner(options) {
         _.each(list.reverse(), function(info) {
             var ip = info.ip;
 
-            var version = info.stats.version;
+            try {
+            var protocol_version = info.stats.protocol_version;
+            } catch(ex) {
+            var protocol_version = "N/A";
+	    }
+            try {
             var uptime = (info.stats.uptime / 60 / 60 / 24).toFixed(1);
+	    } catch(ex) {
+	    var uptime = "N/A";
+	    }
             var fee = parseFloat((info.fee || 0)).toFixed(2);
 
-            str += "<div class='p2p-row "+(row++ & 1 ? "row-grey" : "")+"'><div class='p2p-ip'><a href='http://"+ip+':'+9171+"/static/' target='_blank'>"+ip+":"+9171+"</a></div><div class='p2p-version'>"+version+"</div><div class='p2p-fee'>"+fee+"%</div><div class='p2p-uptime'>"+uptime+" days</div>";
+            str += "<div class='p2p-row "+(row++ & 1 ? "row-grey" : "")+"'><div class='p2p-ip'><a href='http://"+ip+':'+9171+"/static/' target='_blank'>"+ip+":"+9171+"</a></div><div class='p2p-protocol_version'>"+protocol_version+"</div><div class='p2p-fee'>"+fee+"%</div><div class='p2p-uptime'>"+uptime+" days</div>";
             str += "<div class='p2p-geo'>";
             if(info.geo) {
                 str += "<a href='http://www.geoiptool.com/en/?IP="+info.ip+"' target='_blank'>"+info.geo.country+" "+"<img src='"+info.geo.img+"' align='absmiddle' border='0'/></a>";
@@ -138,10 +149,10 @@ function Scanner(options) {
     self.update = function() {
         var filename = config.addr_file;
         if(!fs.existsSync(filename)) {
-            console.error("Unable to fetch p2pool address list from: ",config.addr_file);
+            console.error("Unable to fetch p2pool address list from: ", config.addr_file);
             filename = config.init_file;    // if we can't read p2pool's addr file, we just cycle on the local default init...
         }
-	console.log("File of P2Pool addresses: " + filename);
+	      console.log("File of P2Pool addresses: " + filename);
 
         fs.readFile(filename, { encoding : 'utf8' }, function(err, data) {
             if(err) {
@@ -154,18 +165,16 @@ function Scanner(options) {
 
                     // main init
                     if(p2pool_init) {
-                    	console.log("Main INIT function.");
-                        p2pool_init = false;
-
+                    	  p2pool_init = false;
                         // if we can read p2pool addr file, also add our pre-collected IPs
                         // if(filename != config.init_file) {
                             var init_addr = JSON.parse(fs.readFileSync(config.init_file, 'utf8'));
                             self.inject(init_addr);
                         //}
 
-                        for(var i = 0; i < (config.probe_N_IPs_simultaneously || 1); i++)
+                        for(var i = 0; i < (config.probe_N_IPs_simultaneously || 1); i++) {
                             self.digest();
-
+                        }
                         dpc(60*1000, function() { self.store_working(); })
                     }
                 }
@@ -182,7 +191,7 @@ function Scanner(options) {
     // store public pools in a file that reloads at startup
     self.store_working = function() {
         var data = JSON.stringify(self.addr_working);
-        console.log("Write public pools to a file that reloads at startup.");
+        //console.log("Write public pools to a file that reloads at startup.");
         fs.writeFile(config.store_file, data, { encoding : 'utf8' }, function(err) {
             dpc(60*1000, self.store_working);
         })
@@ -216,51 +225,51 @@ function Scanner(options) {
 
 	// execute scan of a single IP
     self.digest = function() {
-		//console.log("Begin Digest. Size of addr_pending: " + _.size(self.addr_pending));
-        if(!_.size(self.addr_pending))
+        if(!_.size(self.addr_pending)) {
             return self.list_complete();
-
+        }
         var info = _.find(self.addr_pending, function() { return true; });
         delete self.addr_pending[info.ip];
 
-        if(info.ip == "0.0.0.0" || info.ip == "127.0.0.1") {
-	    	    return;
-		    }
+        // skip local addresses
+        //if(info.ip == "0.0.0.0" || info.ip == "127.0.0.1") { return; }
 
         self.addr_digested[info.ip] = info;
         console.log("P2POOL DIGESTING:" + info.ip + ":" + 9171);
 
         digest_ip(info, function(err, fee){
-            if(!err) {
+            if(!err && !(info.ip == "0.0.0.0" || info.ip == "127.0.0.1")) {
                 self.addr_working[info.ip] = info;
+                 info.fee = fee;
                 digest_local_stats(info, function(err, stats) {
-                    if(!err)
-                    	info.fee = fee;
+                    if(!err && stats.protocol_version >= 1800) {
                         info.stats = stats;
-                        console.log("FOUND WORKING POOL: " + info.ip + ":9171 | VERSION: " + info.stats.version);
+                        console.log("FOUND WORKING POOL: " + info.ip + ":9171 | VERSION: " + info.stats.protocol_version);
                     digest_global_stats(info, function(err, stats) {
-                        if(!err)
+                        if(!err) {
                             self.update_global_stats(stats);
-
-                        if(!info.geo)
+                        }
+                        if(!info.geo) {
                             self.geo.get(info.ip, function(err, geo) {
-                                if(!err)
+                                if(!err) {
                                     info.geo = geo;
-
+                                }
                                 continue_digest();
                             });
-                        else
+                        } else {
                             continue_digest();
+                        }
                     });
+                  }
                 });
-            }
-            else {
+            } else {
+                console.log("Digest IP Error: " + err);
                 delete self.addr_working[info.ip];
                 continue_digest();
             }
 
             function continue_digest() {
-                self.working_size = _.size(self.addr_working);
+                //self.working_size = _.size(self.addr_working);
                 dpc(self.digest);
             }
         });
@@ -268,7 +277,6 @@ function Scanner(options) {
 
     // schedule restart of the scan once all IPs are done
     self.list_complete = function() {
-    	console.log("Scheduling restart of the scan.");
         self.addr_pending = self.addr_digested;
         self.addr_digested = { }
         dpc(config.rescan_list_delay, self.digest);
@@ -322,18 +330,18 @@ function Scanner(options) {
             });
 
             res.on('end', function () {
-		if(options.plain)
-                    callback(null, result);
-                else {
-                    try {
-                        var o = JSON.parse(result);
-			callback(null, o);
-                    } catch(ex) {
-                        console.error(ex);
-                        callback(ex);
-                    }
+        		if(options.plain) {
+              callback(null, result);
+            } else {
+                try {
+                    var o = JSON.parse(result);
+	                  callback(null, o);
+                } catch(ex) {
+                    console.error(ex);
+                    callback(ex);
                 }
-            });
+            }
+        });
         });
 
         req.on('socket', function (socket) {
@@ -356,16 +364,18 @@ function Scanner(options) {
 
             if(upload.ftp) {
                 var ftp = upload.ftp;
-                if(!ftp.address || !ftp.username || !ftp.password)
+                if(!ftp.address || !ftp.username || !ftp.password) {
                     return console.error("upload.cfg ftp configuration must contain target address, username and password");
+                }
                 var cmd = "curl -T "+config.flush_filename+" "+ftp.address+" --user "+ftp.address+":"+ftp.password;
                 exec(cmd, function(error){ if(error) console.error(error); });
             }
 
             if(upload.scp) {
                 var scp = upload.scp;
-                if(!scp.address)
+                if(!scp.address) {
                     return console.error("upload.cfg scp configuration must contain target address");
+                }
                 var cmd = "scp -q ./"+config.flush_filename+" "+scp.address;
                 exec(cmd, function(error){ if(error) console.error(error); });
             }
